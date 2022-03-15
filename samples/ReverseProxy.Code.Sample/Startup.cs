@@ -10,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Yarp.ReverseProxy.Configuration;
 using Yarp.ReverseProxy.Forwarder;
 using Yarp.ReverseProxy.Model;
+using Yarp.ReverseProxy.Transforms;
 
 namespace Yarp.Sample
 {
@@ -64,14 +65,27 @@ namespace Yarp.Sample
             {
                 new RouteConfig()
                 {
-                    RouteId = "route1",
+                    RouteId = "swapi.get.people",
+                    ClusterId = "swapi.dev",
+                    Match = new RouteMatch
+                    {
+                        // Path or Hosts are required for each route. This catch-all pattern matches all request paths.
+                        Path = "/backends/swapi/vexp/people/{people_id}/",
+                    },
+                }
+                .WithTransformPathRouteValues("/people/{people_id}/"),
+                new RouteConfig()
+                {
+                    RouteId = "swapi.bad.people",
                     ClusterId = "cluster1",
                     Match = new RouteMatch
                     {
                         // Path or Hosts are required for each route. This catch-all pattern matches all request paths.
-                        Path = "{**catch-all}"
-                    }
+                        Path = "/backends/swapi/vexp/people/{people_id}/",
+                        PathParameters = new[]{new RoutePathParameter() { Name ="people_id", Values = new string[] { "19"}} }
+                    },
                 }
+                .WithTransformPathSet("/"),
             };
         }
         private ClusterConfig[] GetClusters()
@@ -84,16 +98,19 @@ namespace Yarp.Sample
                 new ClusterConfig()
                 {
                     ClusterId = "cluster1",
-                    SessionAffinity = new SessionAffinityConfig { Enabled = true, Policy = "Cookie", AffinityKeyName = ".Yarp.ReverseProxy.Affinity" },
                     Destinations = new Dictionary<string, DestinationConfig>(StringComparer.OrdinalIgnoreCase)
                     {
-                        { "destination1", new DestinationConfig() { Address = "https://example.com" } },
-                        { "debugdestination1", new DestinationConfig() {
-                            Address = "https://bing.com",
-                            Metadata = debugMetadata  }
-                        },
+                        { "destination1", new DestinationConfig() { Address = "https://perdu.com" } },
                     }
-                }
+                },
+                new ClusterConfig()
+                {
+                    ClusterId = "swapi.dev",
+                    Destinations = new Dictionary<string, DestinationConfig>(StringComparer.Ordinal)
+                    {
+                        { "destination1", new DestinationConfig() { Address = "https://swapi.dev/api" } },
+                    }
+                },
             };
         }
 
